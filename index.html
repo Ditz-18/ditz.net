@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DITZ — Voucher Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root {
+  --bg:       #080810;
+  --s1:       #0f0f1a;
+  --s2:       #161625;
+  --s3:       #1e1e32;
+  --border:   #252540;
+  --border2:  #32325a;
+  --cyan:     #00f0ff;
+  --purple:   #8b5cf6;
+  --pink:     #ec4899;
+  --green:    #10b981;
+  --yellow:   #f59e0b;
+  --red:      #ef4444;
+  --text:     #e8e8f8;
+  --muted:    #5a5a80;
+  --muted2:   #8888aa;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── NOISE OVERLAY ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.4;
+}
+
+/* ── GLOW ORBS ── */
+.orb {
+  position: fixed; border-radius: 50%;
+  filter: blur(120px); pointer-events: none; z-index: 0;
+  animation: orbFloat 8s ease-in-out infinite alternate;
+}
+.orb1 { width: 500px; height: 500px; background: rgba(139,92,246,.08); top:-100px; left:-100px; }
+.orb2 { width: 400px; height: 400px; background: rgba(0,240,255,.06); bottom:-80px; right:-80px; animation-delay:-4s; }
+@keyframes orbFloat { from{transform:translate(0,0)} to{transform:translate(30px,20px)} }
+
+/* ── LAYOUT ── */
+#app { position: relative; z-index: 1; min-height: 100vh; }
+
+/* ── TOPBAR ── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px;
+  height: 58px;
+  background: rgba(15,15,26,.8);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+}
+.brand {
+  display: flex; align-items: center; gap: 12px;
+}
+.brand-logo {
+  width: 34px; height: 34px; border-radius: 9px;
+  background: linear-gradient(135deg, var(--purple), var(--cyan));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 14px; color: #fff; letter-spacing: 1px;
+}
+.brand-name { font-weight: 800; font-size: 18px; letter-spacing: 2px; color: var(--text); }
+.brand-name span { color: var(--cyan); }
+.brand-sub { font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 4px; }
+
+.nav-pills { display: flex; gap: 4px; }
+.nav-pill {
+  padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  cursor: pointer; border: 1px solid transparent; background: transparent;
+  color: var(--muted2); font-family: 'Outfit', sans-serif;
+  transition: all .2s; display: flex; align-items: center; gap: 7px;
+}
+.nav-pill:hover { color: var(--text); background: var(--s2); }
+.nav-pill.active { background: var(--s3); border-color: var(--border2); color: var(--text); }
+.nav-pill .pill-count {
+  background: var(--purple); color: #fff; font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 10px;
+}
+
+/* ── PAGES ── */
+.page { display: none; padding: 28px; animation: fadeIn .25s ease; }
+.page.active { display: block; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── PAGE HEADER ── */
+.ph { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+.ph-left h1 { font-size: 26px; font-weight: 800; letter-spacing: -.5px; }
+.ph-left p { font-size: 14px; color: var(--muted2); margin-top: 3px; }
+.ph-right { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px; border-radius: 10px; border: none;
+  font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 13px;
+  cursor: pointer; transition: all .2s; white-space: nowrap;
+}
+.btn-primary { background: linear-gradient(135deg, var(--purple), #6d28d9); color: #fff; box-shadow: 0 4px 20px rgba(139,92,246,.3); }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(139,92,246,.4); }
+.btn-cyan { background: linear-gradient(135deg, var(--cyan), #0099aa); color: #000; box-shadow: 0 4px 16px rgba(0,240,255,.2); }
+.btn-cyan:hover { transform: translateY(-1px); }
+.btn-ghost { background: transparent; border: 1px solid var(--border2); color: var(--muted2); }
+.btn-ghost:hover { border-color: var(--cyan); color: var(--cyan); }
+.btn-danger { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.3); color: var(--red); }
+.btn-danger:hover { background: rgba(239,68,68,.25); }
+.btn-green { background: rgba(16,185,129,.15); border: 1px solid rgba(16,185,129,.3); color: var(--green); }
+.btn-green:hover { background: rgba(16,185,129,.25); }
+.btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 7px; }
+.btn-xs { padding: 4px 9px; font-size: 11px; border-radius: 6px; }
+
+/* ── FILTER BAR ── */
+.filter-bar {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 16px; margin-bottom: 20px;
+}
+.filter-bar input, .filter-bar select {
+  background: var(--s2); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 7px 12px; color: var(--text);
+  font-family: 'Outfit', sans-serif; font-size: 13px; outline: none;
+  transition: border-color .2s;
+}
+.filter-bar input:focus, .filter-bar select:focus { border-color: var(--cyan); }
+.filter-bar input { min-width: 200px; }
+.filter-bar select { cursor: pointer; }
+.filter-bar select option { background: var(--s2); }
+.filter-label { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+
+/* ── PROFILE CARDS GRID ── */
+.profiles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.profile-card {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all .25s;
+  position: relative;
+  overflow: hidden;
+}
+.profile-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  border-radius: 16px 16px 0 0;
+  transition: opacity .25s;
+}
+.profile-card.type-reguler::before { background: linear-gradient(90deg, var(--cyan), var(--purple)); }
+.profile-card.type-vip::before     { background: linear-gradient(90deg, var(--purple), var(--pink)); }
+.profile-card.type-vvip::before    { background: linear-gradient(90deg, var(--yellow), var(--pink)); }
+
+.profile-card:hover {
+  border-color: var(--border2);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0,0,0,.4);
+}
+
+.pc-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+.pc-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.type-reguler .pc-icon { background: rgba(0,240,255,.1); color: var(--cyan); }
+.type-vip     .pc-icon { background: rgba(139,92,246,.1); color: var(--purple); }
+.type-vvip    .pc-icon { background: rgba(245,158,11,.1); color: var(--yellow); }
+
+.pc-actions { display: flex; gap: 6px; }
+
+.pc-name { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+.pc-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.pc-chip {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px 9px; font-size: 12px; color: var(--muted2);
+}
+.pc-chip i { font-size: 10px; }
+.pc-chip.highlight { border-color: var(--border2); color: var(--text); font-weight: 600; }
+
+.pc-footer {
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.pc-stat { text-align: center; }
+.pc-stat-num { font-size: 20px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+.pc-stat-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.pc-stat-num.printed { color: var(--green); }
+.pc-stat-num.unprinted { color: var(--cyan); }
+.pc-stat-num.total { color: var(--purple); }
+
+.pc-open-btn {
+  background: var(--s2); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 700;
+  color: var(--text); cursor: pointer; font-family: 'Outfit', sans-serif;
+  display: flex; align-items: center; gap: 6px; transition: all .2s;
+}
+.pc-open-btn:hover { background: var(--purple); border-color: var(--purple); color: #fff; }
+
+/* ── TYPE BADGE ── */
+.type-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700;
+  letter-spacing: .5px; text-transform: uppercase;
+}
+.tb-reguler { background: rgba(0,240,255,.1); color: var(--cyan); border: 1px solid rgba(0,240,255,.2); }
+.tb-vip     { background: rgba(139,92,246,.1); color: var(--purple); border: 1px solid rgba(139,92,246,.2); }
+.tb-vvip    { background: rgba(245,158,11,.1); color: var(--yellow); border: 1px solid rgba(245,158,11,.2); }
+
+/* ── VOUCHER PAGE ── */
+.back-bar {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 22px;
+  padding-bottom: 18px; border-bottom: 1px solid var(--border);
+}
+.back-btn {
+  background: var(--s2); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 600;
+  color: var(--muted2); cursor: pointer; font-family: 'Outfit', sans-serif;
+  display: flex; align-items: center; gap: 6px; transition: all .2s;
+}
+.back-btn:hover { color: var(--text); border-color: var(--text); }
+.back-info { flex: 1; }
+.back-info h2 { font-size: 22px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+.back-info p { font-size: 13px; color: var(--muted2); margin-top: 3px; }
+
+/* Add voucher form */
+.add-voucher-form {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 14px; padding: 20px; margin-bottom: 20px;
+  display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;
+}
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.form-input {
+  background: var(--s2); border: 1px solid var(--border2);
+  border-radius: 9px; padding: 9px 14px; color: var(--text);
+  font-family: 'JetBrains Mono', monospace; font-size: 14px; outline: none;
+  min-width: 180px; transition: border-color .2s;
+}
+.form-input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,240,255,.08); }
+.form-input.readonly { opacity: .6; cursor: not-allowed; }
+
+/* Voucher table */
+.voucher-table-wrap { background: var(--s1); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.vt-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  background: var(--s2);
+}
+.vt-title { font-size: 13px; font-weight: 700; color: var(--muted2); text-transform: uppercase; letter-spacing: 1px; }
+.vt-actions { display: flex; gap: 8px; }
+
+table.vt {
+  width: 100%; border-collapse: collapse;
+}
+table.vt thead tr { background: var(--s2); }
+table.vt th {
+  padding: 11px 16px; text-align: left;
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .8px;
+  border-bottom: 1px solid var(--border);
+}
+table.vt tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background .15s;
+}
+table.vt tbody tr:hover { background: var(--s2); }
+table.vt tbody tr:last-child { border-bottom: none; }
+table.vt td {
+  padding: 12px 16px; font-size: 14px;
+}
+.vt-code {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600; font-size: 13px; color: var(--cyan);
+  letter-spacing: .5px;
+}
+.vt-status {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+  cursor: pointer; transition: all .2s; border: none; font-family: 'Outfit', sans-serif;
+}
+.vt-status.printed {
+  background: rgba(16,185,129,.12); color: var(--green);
+  border: 1px solid rgba(16,185,129,.25);
+}
+.vt-status.unprinted {
+  background: rgba(90,90,128,.15); color: var(--muted2);
+  border: 1px solid var(--border2);
+}
+.vt-status:hover { transform: scale(1.05); }
+
+.vt-actions-cell { display: flex; gap: 6px; align-items: center; }
+.cb-wrap {
+  width: 18px; height: 18px; border-radius: 5px;
+  border: 2px solid var(--border2); cursor: pointer; transition: all .2s;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.cb-wrap.checked { background: var(--purple); border-color: var(--purple); }
+.cb-wrap.checked::after { content: '✓'; color: #fff; font-size: 11px; font-weight: 700; }
+
+/* Empty state */
+.empty-state {
+  text-align: center; padding: 60px 20px;
+  color: var(--muted);
+}
+.empty-state i { font-size: 48px; margin-bottom: 16px; display: block; opacity: .3; }
+.empty-state p { font-size: 15px; margin-bottom: 6px; }
+.empty-state span { font-size: 13px; color: var(--muted); }
+
+/* Stats bar */
+.stats-bar {
+  display: flex; gap: 12px; margin-bottom: 18px; flex-wrap: wrap;
+}
+.stat-chip {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 16px;
+}
+.stat-chip-num { font-size: 22px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+.stat-chip-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+
+/* MODAL */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,.7); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; animation: fadeIn .2s ease;
+}
+.modal {
+  background: var(--s1); border: 1px solid var(--border2);
+  border-radius: 18px; padding: 28px; width: 100%; max-width: 480px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.6);
+  animation: modalIn .25s ease;
+}
+@keyframes modalIn { from{transform:scale(.95);opacity:0} to{transform:scale(1);opacity:1} }
+.modal h3 { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+.modal p  { font-size: 14px; color: var(--muted2); margin-bottom: 20px; }
+.modal-form { display: flex; flex-direction: column; gap: 14px; }
+.mf-group { display: flex; flex-direction: column; gap: 6px; }
+.mf-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.mf-input, .mf-select {
+  background: var(--s2); border: 1px solid var(--border2);
+  border-radius: 10px; padding: 10px 14px; color: var(--text);
+  font-family: 'Outfit', sans-serif; font-size: 14px; outline: none;
+  transition: border-color .2s;
+}
+.mf-input:focus, .mf-select:focus { border-color: var(--cyan); }
+.mf-select { cursor: pointer; }
+.mf-select option { background: var(--s2); }
+.modal-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 999;
+  background: var(--s2); border: 1px solid var(--border2);
+  border-radius: 12px; padding: 14px 18px;
+  display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  animation: toastIn .3s ease;
+  font-size: 14px; font-weight: 500;
+}
+@keyframes toastIn { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+.toast i { font-size: 16px; }
+.toast.success i { color: var(--green); }
+.toast.error   i { color: var(--red); }
+.toast.info    i { color: var(--cyan); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--s1); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 6px; }
+
+/* No profiles yet */
+.welcome-card {
+  background: linear-gradient(135deg, rgba(139,92,246,.1), rgba(0,240,255,.05));
+  border: 1px solid rgba(139,92,246,.2); border-radius: 20px;
+  padding: 48px; text-align: center; margin-top: 40px;
+}
+.welcome-card i { font-size: 56px; color: var(--purple); margin-bottom: 20px; display: block; opacity: .7; }
+.welcome-card h2 { font-size: 24px; font-weight: 800; margin-bottom: 10px; }
+.welcome-card p { font-size: 15px; color: var(--muted2); margin-bottom: 24px; }
+
+/* Divider */
+.divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+/* Row number */
+.row-num { color: var(--muted); font-size: 12px; font-family: 'JetBrains Mono', monospace; }
+
+/* Select all bar */
+.select-bar {
+  display: none; align-items: center; gap: 10px;
+  background: rgba(139,92,246,.1); border: 1px solid rgba(139,92,246,.2);
+  border-radius: 10px; padding: 10px 16px; margin-bottom: 12px;
+}
+.select-bar.show { display: flex; }
+.select-bar span { font-size: 13px; font-weight: 600; color: var(--purple); flex: 1; }
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<div id="app">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-logo">DZ</div>
+      <div>
+        <span class="brand-name">DITZ<span>.NET</span></span>
+        <span class="brand-sub">Voucher Manager</span>
+      </div>
+    </div>
+    <div class="nav-pills">
+      <button class="nav-pill active" onclick="goPage('profiles')" id="nav-profiles">
+        <i class="fa-solid fa-layer-group"></i> Profil Voucher
+        <span class="pill-count" id="pc-count">0</span>
+      </button>
+      <button class="nav-pill" onclick="goPage('vouchers')" id="nav-vouchers" style="display:none">
+        <i class="fa-solid fa-ticket"></i> <span id="nav-voucher-label">Voucher</span>
+        <span class="pill-count" id="vc-count">0</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- PAGE: PROFILES -->
+  <div class="page active" id="page-profiles">
+    <div class="ph">
+      <div class="ph-left">
+        <h1>Profil Voucher</h1>
+        <p>Kelola profil dan buka untuk menambah voucher</p>
+      </div>
+      <div class="ph-right">
+        <button class="btn btn-primary" onclick="openProfileModal()">
+          <i class="fa-solid fa-plus"></i> Buat Profil
+        </button>
+      </div>
+    </div>
+
+    <!-- FILTER -->
+    <div class="filter-bar" id="profile-filter-bar">
+      <span class="filter-label"><i class="fa-solid fa-filter"></i></span>
+      <input type="text" id="pf-search" placeholder="Cari nama profil..." oninput="renderProfiles()">
+      <select id="pf-type" onchange="renderProfiles()">
+        <option value="">Semua Jenis</option>
+        <option value="reguler">Reguler</option>
+        <option value="vip">VIP</option>
+        <option value="vvip">VVIP</option>
+      </select>
+      <select id="pf-durasi" onchange="renderProfiles()">
+        <option value="">Semua Durasi</option>
+      </select>
+      <select id="pf-sort" onchange="renderProfiles()">
+        <option value="newest">Terbaru</option>
+        <option value="name">Nama A-Z</option>
+        <option value="vouchers">Jumlah Voucher</option>
+      </select>
+    </div>
+
+    <div class="profiles-grid" id="profiles-grid"></div>
+  </div>
+
+  <!-- PAGE: VOUCHERS -->
+  <div class="page" id="page-vouchers">
+    <div class="back-bar">
+      <button class="back-btn" onclick="goPage('profiles')">
+        <i class="fa-solid fa-arrow-left"></i> Profil
+      </button>
+      <div class="back-info">
+        <h2 id="vp-title">— <span id="vp-type-badge"></span></h2>
+        <p id="vp-meta"></p>
+      </div>
+    </div>
+
+    <!-- ADD FORM -->
+    <div class="add-voucher-form" id="add-form">
+      <div class="form-group" id="fg-kode" style="display:none">
+        <label class="form-label"><i class="fa-solid fa-ticket"></i> Kode Voucher</label>
+        <input class="form-input" id="fi-kode" placeholder="Masukkan kode..." maxlength="50">
+      </div>
+      <div class="form-group" id="fg-user" style="display:none">
+        <label class="form-label"><i class="fa-solid fa-user"></i> Username</label>
+        <input class="form-input" id="fi-user" placeholder="Username..." maxlength="50">
+      </div>
+      <div class="form-group" id="fg-pass" style="display:none">
+        <label class="form-label"><i class="fa-solid fa-lock"></i> Password</label>
+        <input class="form-input" id="fi-pass" placeholder="Password..." maxlength="50">
+      </div>
+      <div class="form-group">
+        <label class="form-label"><i class="fa-solid fa-clock"></i> Durasi</label>
+        <input class="form-input readonly" id="fi-durasi" readonly>
+      </div>
+      <div class="form-group">
+        <label class="form-label"><i class="fa-solid fa-tag"></i> Harga</label>
+        <input class="form-input readonly" id="fi-harga" readonly>
+      </div>
+      <button class="btn btn-cyan" onclick="addVoucher()" style="margin-bottom:1px">
+        <i class="fa-solid fa-plus"></i> Tambah Voucher
+      </button>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats-bar" id="stats-bar"></div>
+
+    <!-- FILTER voucher -->
+    <div class="filter-bar">
+      <span class="filter-label"><i class="fa-solid fa-filter"></i></span>
+      <input type="text" id="vf-search" placeholder="Cari kode / username..." oninput="renderVouchers()">
+      <select id="vf-status" onchange="renderVouchers()">
+        <option value="">Semua Status</option>
+        <option value="unprinted">Belum Dicetak</option>
+        <option value="printed">Sudah Dicetak</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="toggleSelectMode()">
+        <i class="fa-solid fa-check-double"></i> Pilih
+      </button>
+    </div>
+
+    <!-- SELECT BAR -->
+    <div class="select-bar" id="select-bar">
+      <span id="select-count-lbl">0 dipilih</span>
+      <button class="btn btn-green btn-sm" onclick="markSelectedPrinted(true)"><i class="fa-solid fa-check"></i> Tandai Dicetak</button>
+      <button class="btn btn-ghost btn-sm" onclick="markSelectedPrinted(false)"><i class="fa-solid fa-xmark"></i> Batalkan Cetak</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteSelected()"><i class="fa-solid fa-trash"></i> Hapus</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+    </div>
+
+    <!-- TABLE -->
+    <div class="voucher-table-wrap">
+      <div class="vt-header">
+        <span class="vt-title" id="vt-count-lbl">Daftar Voucher</span>
+        <div class="vt-actions">
+          <button class="btn btn-ghost btn-sm" onclick="exportCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+        </div>
+      </div>
+      <table class="vt">
+        <thead id="vt-head"></thead>
+        <tbody id="vt-body"></tbody>
+      </table>
+      <div id="vt-empty" class="empty-state" style="display:none">
+        <i class="fa-solid fa-ticket"></i>
+        <p>Belum ada voucher</p>
+        <span>Tambah voucher menggunakan form di atas</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Create/Edit Profile -->
+<div class="modal-overlay" id="modal-profile" style="display:none" onclick="closeModal('modal-profile')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3 id="modal-profile-title">Buat Profil Baru</h3>
+    <p>Isi detail profil voucher</p>
+    <div class="modal-form">
+      <div class="mf-group">
+        <label class="mf-label">Nama Profil</label>
+        <input class="mf-input" id="mf-name" placeholder="Contoh: Reguler 1 Jam, VIP 7 Hari...">
+      </div>
+      <div class="mf-group">
+        <label class="mf-label">Jenis</label>
+        <select class="mf-select" id="mf-type">
+          <option value="reguler">Reguler</option>
+          <option value="vip">VIP</option>
+          <option value="vvip">VVIP</option>
+        </select>
+      </div>
+      <div class="mf-group">
+        <label class="mf-label">Durasi</label>
+        <input class="mf-input" id="mf-durasi" placeholder="Contoh: 1 Jam, 1 Hari, 7 Hari...">
+      </div>
+      <div class="mf-group">
+        <label class="mf-label">Harga</label>
+        <input class="mf-input" id="mf-harga" placeholder="Contoh: Rp 2.000, Rp 10.000...">
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('modal-profile')">Batal</button>
+      <button class="btn btn-primary" onclick="saveProfile()"><i class="fa-solid fa-floppy-disk"></i> Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Delete confirm -->
+<div class="modal-overlay" id="modal-confirm" style="display:none" onclick="closeModal('modal-confirm')">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:380px">
+    <h3 id="confirm-title">Hapus?</h3>
+    <p id="confirm-msg">Tindakan ini tidak bisa dibatalkan.</p>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('modal-confirm')">Batal</button>
+      <button class="btn btn-danger" id="confirm-ok-btn">Hapus</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════
+//  STORAGE
+// ═══════════════════════════════
+const LS_KEY = 'ditz_vm_v1';
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY)) || { profiles: [], vouchers: [] }; }
+  catch { return { profiles: [], vouchers: [] }; }
+}
+function save(data) { localStorage.setItem(LS_KEY, JSON.stringify(data)); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+// ═══════════════════════════════
+//  STATE
+// ═══════════════════════════════
+let db = load();
+let currentProfileId = null;
+let editingProfileId = null;
+let selectMode = false;
+let selected = new Set();
+
+// ═══════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════
+function goPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-pill').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.getElementById('nav-' + page).classList.add('active');
+
+  if (page === 'profiles') {
+    currentProfileId = null;
+    document.getElementById('nav-vouchers').style.display = 'none';
+    renderProfiles();
+  }
+  if (page === 'vouchers') {
+    renderVoucherPage();
+  }
+}
+
+// ═══════════════════════════════
+//  PROFILES
+// ═══════════════════════════════
+function openProfileModal(editId = null) {
+  editingProfileId = editId;
+  const modal = document.getElementById('modal-profile');
+  if (editId) {
+    const p = db.profiles.find(x => x.id === editId);
+    document.getElementById('modal-profile-title').textContent = 'Edit Profil';
+    document.getElementById('mf-name').value   = p.name;
+    document.getElementById('mf-type').value   = p.type;
+    document.getElementById('mf-durasi').value = p.durasi;
+    document.getElementById('mf-harga').value  = p.harga;
+  } else {
+    document.getElementById('modal-profile-title').textContent = 'Buat Profil Baru';
+    document.getElementById('mf-name').value   = '';
+    document.getElementById('mf-type').value   = 'reguler';
+    document.getElementById('mf-durasi').value = '';
+    document.getElementById('mf-harga').value  = '';
+  }
+  modal.style.display = 'flex';
+  setTimeout(() => document.getElementById('mf-name').focus(), 100);
+}
+
+function saveProfile() {
+  const name   = document.getElementById('mf-name').value.trim();
+  const type   = document.getElementById('mf-type').value;
+  const durasi = document.getElementById('mf-durasi').value.trim();
+  const harga  = document.getElementById('mf-harga').value.trim();
+  if (!name || !durasi || !harga) { showToast('Isi semua field!', 'error'); return; }
+
+  if (editingProfileId) {
+    const p = db.profiles.find(x => x.id === editingProfileId);
+    p.name = name; p.type = type; p.durasi = durasi; p.harga = harga;
+    showToast('Profil diperbarui', 'success');
+  } else {
+    db.profiles.push({ id: uid(), name, type, durasi, harga, createdAt: Date.now() });
+    showToast('Profil berhasil dibuat!', 'success');
+  }
+  save(db);
+  closeModal('modal-profile');
+  renderProfiles();
+  updateNavCount();
+}
+
+function deleteProfile(id) {
+  const p = db.profiles.find(x => x.id === id);
+  const vcount = db.vouchers.filter(v => v.profileId === id).length;
+  showConfirm(
+    `Hapus profil "${p.name}"?`,
+    vcount ? `Profil ini memiliki ${vcount} voucher yang juga akan dihapus.` : 'Tindakan ini tidak bisa dibatalkan.',
+    () => {
+      db.profiles = db.profiles.filter(x => x.id !== id);
+      db.vouchers = db.vouchers.filter(v => v.profileId !== id);
+      save(db);
+      renderProfiles();
+      updateNavCount();
+      showToast('Profil dihapus', 'info');
+    }
+  );
+}
+
+function openProfile(id) {
+  currentProfileId = id;
+  document.getElementById('nav-vouchers').style.display = 'flex';
+  goPage('vouchers');
+}
+
+function renderProfiles() {
+  const search = document.getElementById('pf-search').value.toLowerCase();
+  const type   = document.getElementById('pf-type').value;
+  const durasi = document.getElementById('pf-durasi').value;
+  const sort   = document.getElementById('pf-sort').value;
+
+  let list = [...db.profiles];
+
+  // Populate durasi filter
+  const allDurasi = [...new Set(db.profiles.map(p => p.durasi))].sort();
+  const dEl = document.getElementById('pf-durasi');
+  const curDurasi = dEl.value;
+  dEl.innerHTML = '<option value="">Semua Durasi</option>' +
+    allDurasi.map(d => `<option value="${d}" ${d === curDurasi ? 'selected' : ''}>${d}</option>`).join('');
+
+  if (search) list = list.filter(p => p.name.toLowerCase().includes(search));
+  if (type)   list = list.filter(p => p.type === type);
+  if (durasi) list = list.filter(p => p.durasi === durasi);
+
+  if (sort === 'name')     list.sort((a,b) => a.name.localeCompare(b.name));
+  else if (sort === 'vouchers') list.sort((a,b) => voucherCount(b.id) - voucherCount(a.id));
+  else list.sort((a,b) => b.createdAt - a.createdAt);
+
+  const grid = document.getElementById('profiles-grid');
+
+  if (!db.profiles.length) {
+    grid.innerHTML = `
+      <div class="welcome-card" style="grid-column:1/-1">
+        <i class="fa-solid fa-layer-group"></i>
+        <h2>Belum ada profil voucher</h2>
+        <p>Buat profil pertamamu untuk mulai mengelola voucher hotspot DITZ</p>
+        <button class="btn btn-primary" onclick="openProfileModal()">
+          <i class="fa-solid fa-plus"></i> Buat Profil Pertama
+        </button>
+      </div>`;
+    return;
+  }
+
+  if (!list.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;padding:48px 0">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <p>Tidak ada profil yang cocok</p>
+      <span>Coba ubah filter pencarian</span>
+    </div>`;
+    return;
+  }
+
+  const ICONS = { reguler: 'fa-wifi', vip: 'fa-star', vvip: 'fa-crown' };
+
+  grid.innerHTML = list.map(p => {
+    const total     = voucherCount(p.id);
+    const printed   = db.vouchers.filter(v => v.profileId === p.id && v.printed).length;
+    const unprinted = total - printed;
+    return `
+    <div class="profile-card type-${p.type}" onclick="openProfile('${p.id}')">
+      <div class="pc-header">
+        <div class="pc-icon"><i class="fa-solid ${ICONS[p.type]}"></i></div>
+        <div class="pc-actions" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost btn-xs" onclick="openProfileModal('${p.id}')">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          <button class="btn btn-danger btn-xs" onclick="deleteProfile('${p.id}')">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
+      </div>
+      <div class="pc-name">${escHtml(p.name)}</div>
+      <div class="pc-meta">
+        <span class="type-badge tb-${p.type}">${p.type.toUpperCase()}</span>
+        <div class="pc-chip highlight"><i class="fa-solid fa-clock"></i> ${escHtml(p.durasi)}</div>
+        <div class="pc-chip highlight"><i class="fa-solid fa-tag"></i> ${escHtml(p.harga)}</div>
+      </div>
+      <div class="pc-footer">
+        <div class="pc-stat">
+          <div class="pc-stat-num total">${total}</div>
+          <div class="pc-stat-lbl">Total</div>
+        </div>
+        <div class="pc-stat">
+          <div class="pc-stat-num unprinted">${unprinted}</div>
+          <div class="pc-stat-lbl">Belum Cetak</div>
+        </div>
+        <div class="pc-stat">
+          <div class="pc-stat-num printed">${printed}</div>
+          <div class="pc-stat-lbl">Dicetak</div>
+        </div>
+        <button class="pc-open-btn"><i class="fa-solid fa-arrow-right"></i> Buka</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  updateNavCount();
+}
+
+function voucherCount(profileId) {
+  return db.vouchers.filter(v => v.profileId === profileId).length;
+}
+
+// ═══════════════════════════════
+//  VOUCHER PAGE
+// ═══════════════════════════════
+function renderVoucherPage() {
+  const p = db.profiles.find(x => x.id === currentProfileId);
+  if (!p) { goPage('profiles'); return; }
+
+  // Set header
+  const ICONS = { reguler: 'fa-wifi', vip: 'fa-star', vvip: 'fa-crown' };
+  document.getElementById('vp-title').childNodes[0].textContent = escHtml(p.name) + ' ';
+  document.getElementById('vp-type-badge').outerHTML =
+    `<span id="vp-type-badge" class="type-badge tb-${p.type}">${p.type.toUpperCase()}</span>`;
+  document.getElementById('vp-meta').textContent = `Durasi: ${p.durasi}  •  Harga: ${p.harga}`;
+  document.getElementById('nav-voucher-label').textContent = p.name;
+
+  // Set form fields visibility
+  const isReg = p.type === 'reguler';
+  document.getElementById('fg-kode').style.display = isReg ? 'flex' : 'none';
+  document.getElementById('fg-user').style.display = !isReg ? 'flex' : 'none';
+  document.getElementById('fg-pass').style.display = !isReg ? 'flex' : 'none';
+  document.getElementById('fi-kode').value = '';
+  document.getElementById('fi-user').value = '';
+  document.getElementById('fi-pass').value = '';
+  document.getElementById('fi-durasi').value = p.durasi;
+  document.getElementById('fi-harga').value  = p.harga;
+
+  // Table header
+  document.getElementById('vt-head').innerHTML = `<tr>
+    <th style="width:40px"><div class="cb-wrap" id="cb-all" onclick="toggleSelectAll()" title="Pilih Semua"></div></th>
+    <th>#</th>
+    ${isReg
+      ? '<th>Kode Voucher</th>'
+      : '<th>Username</th><th>Password</th>'}
+    <th>Durasi</th>
+    <th>Harga</th>
+    <th>Status</th>
+    <th>Aksi</th>
+  </tr>`;
+
+  selectMode = false;
+  selected.clear();
+  renderVouchers();
+}
+
+function addVoucher() {
+  const p = db.profiles.find(x => x.id === currentProfileId);
+  if (!p) return;
+  const isReg = p.type === 'reguler';
+
+  let voucher = { id: uid(), profileId: currentProfileId, durasi: p.durasi, harga: p.harga, printed: false, createdAt: Date.now() };
+
+  if (isReg) {
+    const kode = document.getElementById('fi-kode').value.trim();
+    if (!kode) { showToast('Masukkan kode voucher!', 'error'); document.getElementById('fi-kode').focus(); return; }
+    // Duplicate check
+    if (db.vouchers.find(v => v.profileId === currentProfileId && v.kode === kode)) {
+      showToast('Kode voucher sudah ada!', 'error'); return;
+    }
+    voucher.kode = kode;
+    document.getElementById('fi-kode').value = '';
+    document.getElementById('fi-kode').focus();
+  } else {
+    const user = document.getElementById('fi-user').value.trim();
+    const pass = document.getElementById('fi-pass').value.trim();
+    if (!user || !pass) { showToast('Isi username dan password!', 'error'); return; }
+    if (db.vouchers.find(v => v.profileId === currentProfileId && v.username === user)) {
+      showToast('Username sudah ada!', 'error'); return;
+    }
+    voucher.username = user;
+    voucher.password = pass;
+    document.getElementById('fi-user').value = '';
+    document.getElementById('fi-pass').value = '';
+    document.getElementById('fi-user').focus();
+  }
+
+  db.vouchers.push(voucher);
+  save(db);
+  renderVouchers();
+  renderProfiles();
+  showToast('Voucher ditambahkan!', 'success');
+}
+
+function renderVouchers() {
+  const search = (document.getElementById('vf-search').value || '').toLowerCase();
+  const status = document.getElementById('vf-status').value;
+  const p = db.profiles.find(x => x.id === currentProfileId);
+  if (!p) return;
+
+  let list = db.vouchers.filter(v => v.profileId === currentProfileId);
+
+  if (search) list = list.filter(v =>
+    (v.kode||'').toLowerCase().includes(search) ||
+    (v.username||'').toLowerCase().includes(search)
+  );
+  if (status === 'printed')   list = list.filter(v => v.printed);
+  if (status === 'unprinted') list = list.filter(v => !v.printed);
+
+  const isReg = p.type === 'reguler';
+  const total = db.vouchers.filter(v => v.profileId === currentProfileId).length;
+  const printed = db.vouchers.filter(v => v.profileId === currentProfileId && v.printed).length;
+
+  // Stats
+  document.getElementById('stats-bar').innerHTML = `
+    <div class="stat-chip"><div><div class="stat-chip-num" style="color:var(--purple)">${total}</div><div class="stat-chip-lbl">Total</div></div></div>
+    <div class="stat-chip"><div><div class="stat-chip-num" style="color:var(--cyan)">${total - printed}</div><div class="stat-chip-lbl">Belum Dicetak</div></div></div>
+    <div class="stat-chip"><div><div class="stat-chip-num" style="color:var(--green)">${printed}</div><div class="stat-chip-lbl">Sudah Dicetak</div></div></div>
+    <div class="stat-chip"><div><div class="stat-chip-num" style="color:var(--muted2)">${list.length}</div><div class="stat-chip-lbl">Ditampilkan</div></div></div>
+  `;
+
+  document.getElementById('vt-count-lbl').textContent = `${list.length} Voucher`;
+
+  const body = document.getElementById('vt-body');
+  if (!list.length) {
+    body.innerHTML = '';
+    document.getElementById('vt-empty').style.display = 'block';
+  } else {
+    document.getElementById('vt-empty').style.display = 'none';
+    body.innerHTML = list.map((v, i) => {
+      const isSel = selected.has(v.id);
+      return `<tr id="vrow-${v.id}">
+        <td>
+          <div class="cb-wrap ${isSel ? 'checked' : ''}" onclick="toggleSelect('${v.id}')"></div>
+        </td>
+        <td class="row-num">${i + 1}</td>
+        ${isReg
+          ? `<td class="vt-code">${escHtml(v.kode)}</td>`
+          : `<td class="vt-code">${escHtml(v.username)}</td><td class="vt-code">${escHtml(v.password)}</td>`}
+        <td>${escHtml(v.durasi)}</td>
+        <td>${escHtml(v.harga)}</td>
+        <td>
+          <button class="vt-status ${v.printed ? 'printed' : 'unprinted'}"
+            onclick="togglePrinted('${v.id}')">
+            <i class="fa-solid ${v.printed ? 'fa-circle-check' : 'fa-circle'}"></i>
+            ${v.printed ? 'Dicetak' : 'Belum Cetak'}
+          </button>
+        </td>
+        <td>
+          <div class="vt-actions-cell">
+            <button class="btn btn-danger btn-xs" onclick="deleteVoucher('${v.id}')">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  updateSelectBar();
+  updateNavCount();
+}
+
+function togglePrinted(id) {
+  const v = db.vouchers.find(x => x.id === id);
+  if (!v) return;
+  v.printed = !v.printed;
+  save(db);
+  renderVouchers();
+  renderProfiles();
+  showToast(v.printed ? 'Ditandai sudah dicetak' : 'Ditandai belum dicetak', 'info');
+}
+
+function deleteVoucher(id) {
+  showConfirm('Hapus voucher ini?', 'Tindakan tidak bisa dibatalkan.', () => {
+    db.vouchers = db.vouchers.filter(x => x.id !== id);
+    selected.delete(id);
+    save(db);
+    renderVouchers();
+    renderProfiles();
+    showToast('Voucher dihapus', 'info');
+  });
+}
+
+// ═══════════════════════════════
+//  SELECT MODE
+// ═══════════════════════════════
+function toggleSelectMode() {
+  selectMode = !selectMode;
+  if (!selectMode) selected.clear();
+  renderVouchers();
+}
+
+function toggleSelect(id) {
+  if (selected.has(id)) selected.delete(id);
+  else selected.add(id);
+  renderVouchers();
+}
+
+function toggleSelectAll() {
+  const p = db.profiles.find(x => x.id === currentProfileId);
+  const visible = db.vouchers.filter(v => v.profileId === currentProfileId);
+  const allSel = visible.every(v => selected.has(v.id));
+  if (allSel) visible.forEach(v => selected.delete(v.id));
+  else visible.forEach(v => selected.add(v.id));
+  renderVouchers();
+}
+
+function updateSelectBar() {
+  const bar = document.getElementById('select-bar');
+  if (selected.size > 0) {
+    bar.classList.add('show');
+    document.getElementById('select-count-lbl').textContent = `${selected.size} voucher dipilih`;
+  } else {
+    bar.classList.remove('show');
+  }
+  const cbAll = document.getElementById('cb-all');
+  if (cbAll) {
+    const visible = db.vouchers.filter(v => v.profileId === currentProfileId);
+    const allSel = visible.length > 0 && visible.every(v => selected.has(v.id));
+    cbAll.className = 'cb-wrap' + (allSel ? ' checked' : '');
+  }
+}
+
+function markSelectedPrinted(val) {
+  selected.forEach(id => {
+    const v = db.vouchers.find(x => x.id === id);
+    if (v) v.printed = val;
+  });
+  save(db);
+  renderVouchers();
+  renderProfiles();
+  showToast(`${selected.size} voucher diperbarui`, 'success');
+}
+
+function deleteSelected() {
+  showConfirm(`Hapus ${selected.size} voucher?`, 'Tindakan tidak bisa dibatalkan.', () => {
+    db.vouchers = db.vouchers.filter(v => !selected.has(v.id));
+    selected.clear();
+    save(db);
+    renderVouchers();
+    renderProfiles();
+    showToast('Voucher dihapus', 'info');
+  });
+}
+
+// ═══════════════════════════════
+//  CSV EXPORT
+// ═══════════════════════════════
+function exportCSV() {
+  const p = db.profiles.find(x => x.id === currentProfileId);
+  if (!p) return;
+  const isReg = p.type === 'reguler';
+  let rows = db.vouchers.filter(v => v.profileId === currentProfileId);
+  if (selected.size > 0) rows = rows.filter(v => selected.has(v.id));
+
+  const headers = isReg
+    ? ['Kode Voucher', 'Durasi', 'Harga', 'Status']
+    : ['Username', 'Password', 'Durasi', 'Harga', 'Status'];
+
+  const lines = [headers.join(',')];
+  rows.forEach(v => {
+    const vals = isReg
+      ? [v.kode, v.durasi, v.harga, v.printed ? 'Dicetak' : 'Belum']
+      : [v.username, v.password, v.durasi, v.harga, v.printed ? 'Dicetak' : 'Belum'];
+    lines.push(vals.map(x => `"${(x||'').replace(/"/g,'""')}"`).join(','));
+  });
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `DITZ_${p.name.replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  showToast(`${rows.length} voucher diexport`, 'success');
+}
+
+// ═══════════════════════════════
+//  HELPERS
+// ═══════════════════════════════
+function updateNavCount() {
+  document.getElementById('pc-count').textContent = db.profiles.length;
+  if (currentProfileId) {
+    document.getElementById('vc-count').textContent = voucherCount(currentProfileId);
+  }
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function closeModal(id) {
+  document.getElementById(id).style.display = 'none';
+}
+
+function showConfirm(title, msg, onOk) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent   = msg;
+  document.getElementById('confirm-ok-btn').onclick = () => { closeModal('modal-confirm'); onOk(); };
+  document.getElementById('modal-confirm').style.display = 'flex';
+}
+
+function showToast(msg, type = 'info') {
+  const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<i class="fa-solid ${icons[type]}"></i> ${msg}`;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; }, 2200);
+  setTimeout(() => t.remove(), 2500);
+}
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const active = document.activeElement;
+    if (['fi-kode','fi-user','fi-pass'].includes(active.id)) addVoucher();
+    if (active.id === 'mf-harga') saveProfile();
+  }
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
+  }
+});
+
+// ── START ──
+renderProfiles();
+updateNavCount();
+</script>
+</body>
+</html>
